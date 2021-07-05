@@ -1,0 +1,16 @@
+---
+## Default Elasticsearch configuration from Elasticsearch base image.
+## https://github.com/elastic/elasticsearch/blob/master/distribution/docker/src/docker/config/elasticsearch.yml
+#
+cluster.name: "elk-cluster"
+network.host: 0.0.0.0
+
+# Default line length is only 4kb, and when doing mass deletion of old indices, it is not enough, so we increase it to 16kb
+#http.max_initial_line_length: 16kb
+
+## X-Pack settings
+## see https://www.elastic.co/guide/en/elasticsearch/reference/current/setup-xpack.html
+#
+xpack.license.self_generated.type: basic
+xpack.security.enabled: false
+xpack.monitoring.collection.enabled: false

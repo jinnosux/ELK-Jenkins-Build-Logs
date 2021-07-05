@@ -1,0 +1,127 @@
+version: '3.2'
+
+services:
+  jenkins:
+    container_name: jenkins
+    hostname: jenkins
+    image: "jenkins/jenkins:lts"
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-f", "http://localhost:8080/login"]
+    volumes:
+      - jenkins:/var/jenkins_home
+    restart: always
+    networks:
+      - elk
+
+  gogs:
+    container_name: gogs
+    image: "gogs/gogs:latest"
+    hostname: gogs
+    ports:
+      - "10022:22"
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-f", "http://localhost:3000"]
+    volumes:
+      - 'gogs_data:/data'
+    networks:
+      - elk
+
+  elasticsearch:
+    container_name: elasticsearch
+    hostname: elasticsearch
+    build:
+      context: elasticsearch/
+      args:
+        ELK_VERSION: 7.13.0
+    volumes:
+      - type: bind
+        source: ./elasticsearch/config/elasticsearch.yml
+        target: /usr/share/elasticsearch/config/elasticsearch.yml
+        read_only: true
+      - type: volume
+        source: elasticsearch
+        target: /usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      ES_JAVA_OPTS: "-Xmx1024m -Xms1024m"
+      ELASTIC_PASSWORD: "Elastic"
+      discovery.type: single-node
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-f", "http://localhost:9200/_cluster/settings"]
+    restart: always
+    networks:
+      - elk
+
+  logstash:
+    container_name: logstash
+    hostname: logstash
+    command: --config.reload.automatic
+    build:
+      context: logstash/
+      args:
+        ELK_VERSION: 7.13.0
+    volumes:
+      - type: bind
+        source: ./logstash/config/logstash.yml
+        target: /usr/share/logstash/config/logstash.yml
+        read_only: true
+      - type: bind
+        source: ./logstash/config/pipelines.yml
+        target: /usr/share/logstash/config/pipelines.yml
+        read_only: true
+      - type: bind
+        source: ./logstash/pipeline
+        target: /usr/share/logstash/pipeline
+        read_only: true
+    ports:
+      - "9600:9600"
+      - "5044-5080:5044-5080"
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-f", "http://localhost:9600"]
+    environment:
+      LS_JAVA_OPTS: "-Xmx512m -Xms512m"
+    restart: always
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+
+  kibana:
+    container_name: kibana
+    hostname: kibana
+    build:
+      context: kibana/
+      args:
+        - ELK_VERSION=7.13.0
+    volumes:
+      - type: bind
+        source: ./kibana/config/kibana.yml
+        target: /usr/share/kibana/config/kibana.yml
+        read_only: true
+    ports:
+      - "5601:5601"
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-f", "http://localhost:5601/login"]
+    environment:
+      LS_JAVA_OPTS: "-Xmx1024m -Xms1024m"
+    restart: always
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+
+networks:
+  elk:
+    driver: bridge
+
+volumes:
+  elasticsearch:
+  jenkins:
+  gogs_data:
+    driver: local

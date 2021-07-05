@@ -1,0 +1,2 @@
+- pipeline.id: jenkins_data
+  path.config: "/usr/share/logstash/pipeline/jenkins.conf"
